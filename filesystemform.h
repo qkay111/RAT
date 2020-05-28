@@ -24,14 +24,13 @@ public slots:
 
 private slots:
     void on_acceptButton_clicked();
-
     void on_backButton_clicked();
+    void get_file_sys(QString);
 
 private:
     Ui::FileSystemForm *ui;
     FunctionalityForm* functionalityForm;
     QTcpSocket* socket;
-    QString sPath;
 };
 
 #endif // FILESYSTEMFORM_H

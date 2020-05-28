@@ -1,5 +1,6 @@
 #include "functionalityform.h"
 #include "ui_functionalityform.h"
+#include "writeform.h"
 #include <QInputDialog>
 #include <QLineEdit>    // Для выравнивания комбо-бокса
 
@@ -20,8 +21,34 @@ FunctionalityForm::FunctionalityForm(QWidget *parent) :
     ui->enteredAsLabel->setStyleSheet("border: 4px solid #2a4158;"
                                       "background-color: #958a56;"
                                       "color: #2a4158;");
-    ui->fileSystemButton->setStyleSheet("font-size: 27px;");
-    ui->screenShareButton->setStyleSheet("font-size: 27px;");
+    ui->fileSystemButton->setStyleSheet("QPushButton {"
+                                        "border-radius: 5px;"
+                                        "background-color: #2a4158;"
+                                        "color: #8c9ea3;"
+                                        "font-size: 27px;"
+                                        "}"
+                                        "QPushButton:hover {"
+                                        "background-color: #2a5370;"
+                                        "font-size: 24px;"
+                                        "}"
+                                        "QPushButton:pressed {"
+                                        "background-color: #958a56;"
+                                        "color: black;"
+                                        "}");
+    ui->screenShareButton->setStyleSheet("QPushButton {"
+                                         "border-radius: 5px;"
+                                         "background-color: #2a4158;"
+                                         "color: #8c9ea3;"
+                                         "font-size: 27px;"
+                                         "}"
+                                         "QPushButton:hover {"
+                                         "background-color: #2a5370;"
+                                         "font-size: 24px;"
+                                         "}"
+                                         "QPushButton:pressed {"
+                                         "background-color: #958a56;"
+                                         "color: black;"
+                                         "}");
     ui->systemActionsLabel->setAlignment(Qt::AlignCenter);
     ui->systemActionsLabel->setStyleSheet("border: 4px solid #2a4158;"
                                           "background-color: #958a56;"
@@ -34,7 +61,20 @@ FunctionalityForm::FunctionalityForm(QWidget *parent) :
         ui->systemComboBox->setItemData(i, Qt::AlignCenter, Qt::TextAlignmentRole); // выравнивание комбо-бокса
     ui->systemComboBox->setStyleSheet("border: 4px solid #2a4158;"
                                       "color: #8c9ea3;");
-    ui->runButton->setStyleSheet("font-size: 27px;");
+    ui->runButton->setStyleSheet("QPushButton {"
+                                 "border-radius: 5px;"
+                                 "background-color: #2a4158;"
+                                 "color: #8c9ea3;"
+                                 "font-size: 27px;"
+                                 "}"
+                                 "QPushButton:hover {"
+                                 "background-color: #2a5370;"
+                                 "font-size: 24px;"
+                                 "}"
+                                 "QPushButton:pressed {"
+                                 "background-color: #958a56;"
+                                 "color: black;"
+                                 "}");
     ui->systemInfoLabel->setAlignment(Qt::AlignCenter);
     ui->systemInfoLabel->setStyleSheet("border: 4px solid #2a4158;"
                                        "background-color: #958a56;"
@@ -45,12 +85,14 @@ FunctionalityForm::FunctionalityForm(QWidget *parent) :
     connect(this, SIGNAL(send_functionalityForm(FunctionalityForm*, QTcpSocket*)), fileSystemForm, SLOT(get_functionalityForm(FunctionalityForm*, QTcpSocket*)));
     connect(this, SIGNAL(send_functionalityForm_for_sharing(FunctionalityForm*,QTcpSocket*)), screenSharingForm, SLOT(get_functionalityForm(FunctionalityForm*, QTcpSocket*)));
     connect(this, SIGNAL(send_screenshot_for_sharing(QPixmap*)), screenSharingForm, SLOT(get_screenshot_for_sharing(QPixmap*)));
+    connect(this, SIGNAL(send_file_sys(QString)), fileSystemForm, SLOT(get_file_sys(QString)));
 }
 
 FunctionalityForm::~FunctionalityForm()
 {
     delete ui;
     delete fileSystemForm;
+    delete screenSharingForm;
 }
 
 void FunctionalityForm::get_mainWindow(QMainWindow* mw)
@@ -58,8 +100,11 @@ void FunctionalityForm::get_mainWindow(QMainWindow* mw)
     mainWindow = mw;
 }
 
-void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, QPixmap* av, QString userName, QString sysInfo)
+void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, QString userName, QString sysInfo)
 {
+    ui->enteredAsLabel->setText("Вы вошли как: ");
+    ui->systemComboBox->setCurrentIndex(0);
+
     socket = sk;
 
     for (int i = 0; i < 3; i++)
@@ -77,15 +122,13 @@ void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, Q
     else
         ui->enteredAsLabel->setText(ui->enteredAsLabel->text() + userName);
 
-    if (av == nullptr)  // Если нет аватарки
-    {
-        av = new QPixmap(":/emptyAvatar.png");
-        int w = ui->userAvLabel->width();
-        int h = ui->userAvLabel->height();
-        ui->userAvLabel->clear();
-        ui->userAvLabel->setPixmap(av->scaled(w, h, Qt::KeepAspectRatio));  // Установка картинки
-        ui->userAvLabel->setStyleSheet("background: none;");
-    }
+    QPixmap* av = new QPixmap(":/emptyAvatar.png");
+    int w = ui->userAvLabel->width();
+    int h = ui->userAvLabel->height();
+    ui->userAvLabel->clear();
+    ui->userAvLabel->setPixmap(av->scaled(w, h, Qt::KeepAspectRatio));  // Установка картинки
+    ui->userAvLabel->setStyleSheet("background: none;");
+    delete av;
 
     if (userPermissions[0] == 0)
     {
@@ -95,8 +138,20 @@ void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, Q
     }
     else
     {
-        ui->fileSystemButton->setStyleSheet("font-size: 27px;"
-                                            "color: #8c9ea3;");
+        ui->fileSystemButton->setStyleSheet("QPushButton {"
+                                            "border-radius: 5px;"
+                                            "background-color: #2a4158;"
+                                            "color: #8c9ea3;"
+                                            "font-size: 27px;"
+                                            "}"
+                                            "QPushButton:hover {"
+                                            "background-color: #2a5370;"
+                                            "font-size: 24px;"
+                                            "}"
+                                            "QPushButton:pressed {"
+                                            "background-color: #958a56;"
+                                            "color: black;"
+                                            "}");
         ui->fileSystemButton->setEnabled(true);
     }
     if (userPermissions[1] == 0)
@@ -107,8 +162,20 @@ void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, Q
     }
     else
     {
-        ui->screenShareButton->setStyleSheet("font-size: 27px;"
-                                             "color: #8c9ea3;");
+        ui->screenShareButton->setStyleSheet("QPushButton {"
+                                             "border-radius: 5px;"
+                                             "background-color: #2a4158;"
+                                             "color: #8c9ea3;"
+                                             "font-size: 27px;"
+                                             "}"
+                                             "QPushButton:hover {"
+                                             "background-color: #2a5370;"
+                                             "font-size: 24px;"
+                                             "}"
+                                             "QPushButton:pressed {"
+                                             "background-color: #958a56;"
+                                             "color: black;"
+                                             "}");
         ui->screenShareButton->setEnabled(true);
     }
     if (userPermissions[2] == 0)
@@ -126,8 +193,20 @@ void FunctionalityForm::get_user_info(QTcpSocket* sk, const char* permissions, Q
         ui->systemComboBox->setStyleSheet("border: 4px solid #2a4158;"
                                           "color: #8c9ea3;"
                                           "color: #8c9ea3;");
-        ui->runButton->setStyleSheet("font-size: 27px;"
-                                     "color: #8c9ea3;");
+        ui->runButton->setStyleSheet("QPushButton {"
+                                     "border-radius: 5px;"
+                                     "background-color: #2a4158;"
+                                     "color: #8c9ea3;"
+                                     "font-size: 27px;"
+                                     "}"
+                                     "QPushButton:hover {"
+                                     "background-color: #2a5370;"
+                                     "font-size: 24px;"
+                                     "}"
+                                     "QPushButton:pressed {"
+                                     "background-color: #958a56;"
+                                     "color: black;"
+                                     "}");
         ui->systemComboBox->setEnabled(true);
         ui->runButton->setEnabled(true);
     }
@@ -150,16 +229,23 @@ void FunctionalityForm::on_userInfoButton_clicked()
     QMessageBox::about(this, "About user", "Имя пользователя:\n- " + uName + "\nДоступные действия:\n" + availableActions);
 }
 
+void FunctionalityForm::get_hide_all()
+{
+    fileSystemForm->setEnabled(true);
+    fileSystemForm->hide();
+    screenSharingForm->setEnabled(true);
+    screenSharingForm->hide();
+    this->setEnabled(true);
+    this->hide();
+}
+
 void FunctionalityForm::on_exitButton_clicked()
 {
     int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите выйти", QMessageBox::Yes | QMessageBox::No);
     if (result == QMessageBox::No)
         return;
 
-    ui->enteredAsLabel->setText("Вы вошли как: ");
-
-    mainWindow->show();
-    this->hide();
+    emit user_disc();
 }
 
 void FunctionalityForm::on_fileSystemButton_clicked()
@@ -167,6 +253,16 @@ void FunctionalityForm::on_fileSystemButton_clicked()
     emit send_functionalityForm(this, socket);
     fileSystemForm->show();
     this->hide();
+}
+
+void FunctionalityForm::get_enable_file_system()
+{
+    fileSystemForm->setEnabled(true);
+}
+
+void FunctionalityForm::get_file_sys(QString str)
+{
+    emit send_file_sys(str);
 }
 
 void FunctionalityForm::on_screenShareButton_clicked()
@@ -183,168 +279,68 @@ void FunctionalityForm::on_runButton_clicked()
     {
     case 0: // Вывести сообщение
     {
-        QString message = QInputDialog::getText(this, "Message", "Enter a message:");
-        if (message.isEmpty())
-            return;
-        socket->write(("message:" + message + '$').toStdString().c_str());
-        socket->waitForBytesWritten(500);
+        WriteForm* writeForm;
+        writeForm = new WriteForm(this, WRITE_MESSAGE, socket, nullptr);
+        writeForm->show();
+        this->hide();
         this->setEnabled(false);
         break;
     }
-    case 1: // Выключить компьютер
+    case 1:     // Выключить компьютер
     {
         int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите выключить компьютер ?", QMessageBox::Yes | QMessageBox::No);
         if (result == QMessageBox::No)
             return;
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:$shutdown /s$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:$shutdown /s$");
         break;
     }
-    case 2: // Перезагрузить компьютер
+    case 2:     // Перезагрузить компьютер
     {
         int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите перезагрузить компьютер ?", QMessageBox::Yes | QMessageBox::No);
         if (result == QMessageBox::No)
             return;
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:$shutdown /r$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:$shutdown /r$");
         break;
     }
-    case 3: // Получить xml файл с системной информацией
+    case 3:     // Получить xml файл с системной информацией
     {
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:xmlSysFile$msinfo32 /nfo C:/NjTmpSysInfo.txt$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:xmlSysFile$msinfo32 /report C:/NjTmpSysInfo.txt$");
         break;
     }
-    case 4: // Получить версию windows
+    case 4:     // Получить версию windows
     {
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:file$ver > D:/NjTmpSysInfo.txt$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:file$ver > D:/NjTmpSysInfo.txt$");
         break;
     }
-    case 5: // Получить системное время
+    case 5:     // Получить системное время
     {
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:file$time /T > D:/NjTmpSysInfo.txt$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:file$time /T > D:/NjTmpSysInfo.txt$");
         break;
     }
-    case 6: // Получить дату
+    case 6:     // Получить дату
     {
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:file$date /T > D:/NjTmpSysInfo.txt$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:file$date /T > D:/NjTmpSysInfo.txt$");
         break;
     }
-    case 7: // Получить часовой пояс
+    case 7:     // Получить часовой пояс
     {
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:file$tzutil /g > D:/NjTmpSysInfo.txt$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:file$tzutil /g > D:/NjTmpSysInfo.txt$");
         break;
     }
-    case 8: // Перейти в режим гибернации
+    case 8:     // Перейти в режим гибернации
     {
         int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите перевести компьютер в режим гибернации ?", QMessageBox::Yes | QMessageBox::No);
         if (result == QMessageBox::No)
             return;
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:$rundll32.exe PowrProf.dll,SetSuspendState$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:$rundll32.exe PowrProf.dll,SetSuspendState$");
         break;
     }
-    case 9: // Перейти в режим сна
+    case 9:     // Перейти в режим сна
     {
         int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите перевести компьютер в режим сна ?", QMessageBox::Yes | QMessageBox::No);
         if (result == QMessageBox::No)
             return;
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:$rundll32.exe powrprof.dll,SetSuspendState 0,1,0$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:$rundll32.exe powrprof.dll,SetSuspendState 0,1,0$");
         break;
     }
     case 10:    // Заблокировать компьютер
@@ -352,52 +348,50 @@ void FunctionalityForm::on_runButton_clicked()
         int result = QMessageBox::question(this, "Choice", "Вы уверены, что хотите заблокировать компьютер ?", QMessageBox::Yes | QMessageBox::No);
         if (result == QMessageBox::No)
             return;
-        if (socket->isOpen())
-        {
-            socket->write(QString("command:$Rundll32.exe User32.dll,LockWorkStation$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
-        this->setEnabled(false);
+        sendAction("command:$Rundll32.exe User32.dll,LockWorkStation$");
         break;
     }
     case 11:    // Установить время
     {
+        WriteForm* writeForm;
+        writeForm = new WriteForm(this, CHANGE_TIME, socket, nullptr);
+        writeForm->show();
+        this->hide();
+        this->setEnabled(false);
         break;
     }
     case 12:    // Установить дату
     {
-        break;
-    }
-    case 13:    // Изменить положение курсора
-    {
-        break;
-    }
-    case 14:    // Сделать скриншот
-    {
-        if (socket->isOpen())
-        {
-            socket->write(QString("screen:$").toStdString().c_str());
-            socket->waitForBytesWritten(500);
-        }
-        else
-        {
-            mainWindow->show();
-            this->hide();
-            QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
-        }
+        WriteForm* writeForm;
+        writeForm = new WriteForm(this, CHANGE_DATE, socket, nullptr);
+        writeForm->show();
+        this->hide();
         this->setEnabled(false);
         break;
     }
+    case 13:    // Сделать скриншот
+        sendAction("screen:$");
+        break;
     }
 }
 
 void FunctionalityForm::get_screenshot(QPixmap *screenshot)
 {
     emit send_screenshot_for_sharing(screenshot);
+}
+
+void FunctionalityForm::sendAction(QString cmd)
+{
+    if (socket->isOpen())
+    {
+        socket->write(cmd.toStdString().c_str());
+        socket->waitForBytesWritten(500);
+    }
+    else
+    {
+        mainWindow->show();
+        this->hide();
+        QMessageBox::critical(this, "Error!", "Loss of connection to the server!");
+    }
+    this->setEnabled(false);
 }

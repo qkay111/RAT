@@ -12,8 +12,8 @@ int main(int argc, char *argv[])
     app.setStyleSheet(styleFile.readAll());
     // .Подключение общих стилей
 
-    MainWindow mainWindow;  // Создаём главное окно
-    mainWindow.show();  // Вызываем главное окно
+    MainWindow mainWindow;  // создаём главное окно
+    mainWindow.show();  // вызываем главное окно
 
     return app.exec();
 }
